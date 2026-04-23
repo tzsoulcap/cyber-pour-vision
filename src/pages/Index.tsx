@@ -1,4 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+function useBangkokTime() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const p = Object.fromEntries(fmt.map(({ type, value }) => [type, value]));
+  return `${p.year}-${p.month}-${p.day} · ${p.hour}:${p.minute}:${p.second} UTC+7`;
+}
+
 import { Sidebar, type ViewMode, type CameraId } from "@/components/console/Sidebar";
 import { LiveFeed } from "@/components/console/LiveFeed";
 import { DataSidebar } from "@/components/console/DataSidebar";
@@ -8,6 +29,7 @@ import { ArchiveView } from "@/components/console/ArchiveView";
 const Index = () => {
   const [view, setView] = useState<ViewMode>("live");
   const [camera, setCamera] = useState<CameraId>("CAM 01");
+  const bangkokTime = useBangkokTime();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -32,7 +54,7 @@ const Index = () => {
           <div className="flex items-center gap-4 font-mono text-[10px] text-muted-foreground tracking-wider">
             <span className="text-primary">● AI MODEL v4.2.1</span>
             <span>OPERATOR · J. MORALES</span>
-            <span className="text-accent">2024-03-15 · 14:32:08 UTC</span>
+            <span className="text-accent">{bangkokTime}</span>
           </div>
         </header>
 

@@ -6,9 +6,10 @@ interface PanelProps {
   className?: string;
   children: React.ReactNode;
   accent?: "primary" | "accent";
+  action?: React.ReactNode;
 }
 
-export const Panel = ({ title, subtitle, className, children, accent = "primary" }: PanelProps) => {
+export const Panel = ({ title, subtitle, className, children, accent = "primary", action }: PanelProps) => {
   return (
     <div className={cn(
       "glass-panel rounded-2xl overflow-hidden flex flex-col animate-fade-up",
@@ -22,9 +23,12 @@ export const Panel = ({ title, subtitle, className, children, accent = "primary"
           )} />
           <h3 className="font-display text-xs font-semibold tracking-[0.2em] text-foreground uppercase">{title}</h3>
         </div>
-        {subtitle && (
-          <span className="font-mono text-[9px] text-muted-foreground tracking-wider uppercase">{subtitle}</span>
-        )}
+        <div className="flex items-center gap-2">
+          {subtitle && (
+            <span className="font-mono text-[9px] text-muted-foreground tracking-wider uppercase">{subtitle}</span>
+          )}
+          {action}
+        </div>
       </div>
       <div className="flex-1">
         {children}
