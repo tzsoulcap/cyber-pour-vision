@@ -2,12 +2,16 @@ import { Panel } from "./Panel";
 import { Activity, HardDrive, Gauge, Clock, Camera, Shield, Settings } from "lucide-react";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { usePouringStatus } from "@/hooks/usePouringStatus";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { SystemSettings } from "@/hooks/useSystemSettings";
+import { API_BASE } from "@/lib/config";
+
+/** How long (ms) authentication remains valid without re-entering password */
+const AUTH_TTL_MS = 1 * 60 * 1000; // 1 minute
 
 export const BottomDashboard = ({ cameraId }: { cameraId: string }) => {
   const { settings, saveSettings } = useSystemSettings();
@@ -17,11 +21,54 @@ export const BottomDashboard = ({ cameraId }: { cameraId: string }) => {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const openDialog = () => {
+  // Password verification
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const verifiedAt = useRef<number | null>(null);
+
+  const isAuthValid = () =>
+    verifiedAt.current !== null && Date.now() - verifiedAt.current < AUTH_TTL_MS;
+
+  const openPasswordDialog = () => {
     if (!settings) return;
-    setDraft(JSON.parse(JSON.stringify(settings)));
-    setSaveError(null);
-    setDialogOpen(true);
+    if (isAuthValid()) {
+      // Still within TTL — open settings directly
+      setDraft(JSON.parse(JSON.stringify(settings)));
+      setSaveError(null);
+      setDialogOpen(true);
+      return;
+    }
+    setPassword("");
+    setPasswordError(null);
+    setPasswordOpen(true);
+  };
+
+  const handleVerify = async () => {
+    setVerifying(true);
+    setPasswordError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/verify-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        verifiedAt.current = Date.now();
+        setPasswordOpen(false);
+        setDraft(JSON.parse(JSON.stringify(settings)));
+        setSaveError(null);
+        setDialogOpen(true);
+      } else {
+        setPasswordError("Incorrect password");
+      }
+    } catch {
+      setPasswordError("Connection failed");
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const handleSave = async () => {
@@ -47,7 +94,7 @@ export const BottomDashboard = ({ cameraId }: { cameraId: string }) => {
           subtitle={settings ? "LIVE" : "LOADING…"}
           action={
             <button
-              onClick={openDialog}
+              onClick={openPasswordDialog}
               className="p-1 rounded hover:bg-border/60 text-muted-foreground hover:text-foreground transition-colors"
               title="Edit Settings"
             >
@@ -92,6 +139,38 @@ export const BottomDashboard = ({ cameraId }: { cameraId: string }) => {
           </div>
         </Panel>
       </div>
+
+      {/* Password Dialog */}
+      <Dialog open={passwordOpen} onOpenChange={(o) => { setPasswordOpen(o); if (!o) setPassword(""); }}>
+        <DialogContent className="max-w-sm font-mono">
+          <DialogHeader>
+            <DialogTitle className="font-display tracking-[0.15em] text-sm">AUTHENTICATE</DialogTitle>
+          </DialogHeader>
+          <div className="py-3 space-y-3">
+            <p className="font-mono text-[10px] text-muted-foreground tracking-wider">Enter administrator password to access settings.</p>
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              autoFocus
+              onChange={(e) => { setPassword(e.target.value); setPasswordError(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && password) handleVerify(); }}
+              className="font-mono text-xs h-9"
+            />
+            {passwordError && (
+              <p className="font-mono text-[10px] text-destructive">{passwordError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setPasswordOpen(false)} className="font-mono text-xs tracking-wider">
+              CANCEL
+            </Button>
+            <Button size="sm" onClick={handleVerify} disabled={verifying || !password} className="font-mono text-xs tracking-wider">
+              {verifying ? "VERIFYING…" : "CONFIRM"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Settings Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
