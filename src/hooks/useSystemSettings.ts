@@ -6,12 +6,15 @@ const POLL_INTERVAL_MS = 10000;
 type RawSettings = {
   success: boolean;
   config: {
-    camera: {
+    cameras: Array<{
+      id: string;
       exposure_time: number;
       fps: number;
-      height: number;
       width: number;
-    };
+      height: number;
+      plc_id: string;
+      serial: string;
+    }>;
     detection: {
       enabled: boolean;
       detect_interval: number;
@@ -37,13 +40,21 @@ type RawSettings = {
   };
 };
 
+export type CameraConfig = {
+  id: string;
+  exposureTime: number;
+  fps: number;
+  width: number;
+  height: number;
+};
+
 export type SystemSettings = {
-  camera: {
-    exposureTime: number;
-  };
+  cameras: CameraConfig[];
   detection: {
     enabled: boolean;
     interval: number;
+    confidence: number;
+    liquidConfidence: number;
   };
   saving: {
     enabled: boolean;
@@ -53,6 +64,7 @@ export type SystemSettings = {
   api: {
     enabled: boolean;
     patterns: number[];
+    url: string;
   };
 };
 
@@ -64,14 +76,20 @@ type UseSystemSettingsResult = {
 };
 
 function mapRawSettings(raw: RawSettings): SystemSettings {
-  const { camera, detection, saving, api } = raw.config;
+  const { cameras, detection, saving, api } = raw.config;
   return {
-    camera: {
-      exposureTime: camera.exposure_time,
-    },
+    cameras: cameras.map((c) => ({
+      id: c.id,
+      exposureTime: c.exposure_time,
+      fps: c.fps,
+      width: c.width,
+      height: c.height,
+    })),
     detection: {
       enabled: detection.enabled,
       interval: detection.detect_interval,
+      confidence: detection.confidence,
+      liquidConfidence: detection.liquid_confidence,
     },
     saving: {
       enabled: saving.enabled,
@@ -81,6 +99,7 @@ function mapRawSettings(raw: RawSettings): SystemSettings {
     api: {
       enabled: api.enabled,
       patterns: api.patterns,
+      url: api.url,
     },
   };
 }
@@ -125,10 +144,19 @@ export function useSystemSettings(): UseSystemSettingsResult {
 
 async function saveSettings(patch: SystemSettings): Promise<void> {
   const body = {
-    camera: { exposure_time: patch.camera.exposureTime },
-    detection: { enabled: patch.detection.enabled, detect_interval: patch.detection.interval },
-    saving: { enabled: patch.saving.enabled, patterns: patch.saving.patterns, retention_days: patch.saving.retentionDays },
-    api: { enabled: patch.api.enabled, patterns: patch.api.patterns },
+    cameras: patch.cameras.map((c) => ({ id: c.id, exposure_time: c.exposureTime, fps: c.fps })),
+    detection: {
+      enabled: patch.detection.enabled,
+      detect_interval: patch.detection.interval,
+      confidence: patch.detection.confidence,
+      liquid_confidence: patch.detection.liquidConfidence,
+    },
+    saving: {
+      enabled: patch.saving.enabled,
+      patterns: patch.saving.patterns,
+      retention_days: patch.saving.retentionDays,
+    },
+    api: { enabled: patch.api.enabled, patterns: patch.api.patterns, url: patch.api.url },
   };
   const res = await fetch(`${API_BASE}/api/settings`, {
     method: "POST",

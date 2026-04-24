@@ -28,7 +28,7 @@ import { ArchiveView } from "@/components/console/ArchiveView";
 
 const Index = () => {
   const [view, setView] = useState<ViewMode>("live");
-  const [camera, setCamera] = useState<CameraId>("CAM 01");
+  const [camera, setCamera] = useState<CameraId>("");
   const bangkokTime = useBangkokTime();
 
   return (
@@ -65,10 +65,10 @@ const Index = () => {
                 <div className="flex-1 min-w-0">
                   <LiveFeed cameraId={camera} />
                 </div>
-                <DataSidebar />
+                <DataSidebar cameraId={camera} />
               </div>
               <div className="shrink-0">
-                <BottomDashboard />
+                <BottomDashboard cameraId={camera} />
               </div>
             </div>
           ) : (

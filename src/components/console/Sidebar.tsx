@@ -1,9 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Activity, Archive, Camera, Cpu } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ViewMode = "live" | "archive";
-export type CameraId = "CAM 01" | "CAM 02" | "CAM 03";
+export type CameraId = string;
+
+const API_BASE = "http://192.168.212.10:5000";
+
+type ApiCamera = {
+  id: string;
+  connected: boolean;
+  fps: number;
+  trigger_active: boolean;
+  charge: number;
+  mold: number;
+  pattern: number;
+  images_saved: number;
+};
+
+function useCameras() {
+  const [cameras, setCameras] = useState<ApiCamera[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetch_ = () =>
+      fetch(`${API_BASE}/api/cameras`)
+        .then((r) => r.json())
+        .then((d) => { if (!cancelled) setCameras(d.cameras ?? []); })
+        .catch(() => {});
+    fetch_();
+    const id = setInterval(fetch_, 5000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  return cameras;
+}
 
 interface Props {
   view: ViewMode;
@@ -12,13 +43,19 @@ interface Props {
   onCameraChange: (c: CameraId) => void;
 }
 
-const cameras: { id: CameraId; status: "online" | "online" | "idle" }[] = [
-  { id: "CAM 01", status: "online" },
-  { id: "CAM 02", status: "online" },
-  { id: "CAM 03", status: "idle" },
-];
-
 export const Sidebar = ({ view, onViewChange, activeCamera, onCameraChange }: Props) => {
+  const cameras = useCameras();
+
+  // Auto-select first connected camera when list loads
+  useEffect(() => {
+    if (cameras.length > 0 && !activeCamera) {
+      const first = cameras.find((c) => c.connected) ?? cameras[0];
+      onCameraChange(first.id);
+    }
+  }, [cameras]);
+
+  const onlineCount = cameras.filter((c) => c.connected).length;
+
   return (
     <aside className="w-[260px] shrink-0 h-screen sticky top-0 glass-panel-strong border-r border-border flex flex-col">
       {/* Brand */}
@@ -59,18 +96,25 @@ export const Sidebar = ({ view, onViewChange, activeCamera, onCameraChange }: Pr
       <div className="p-4 border-b border-border flex-1 overflow-y-auto">
         <div className="flex items-center justify-between mb-3 px-1">
           <span className="font-mono text-[10px] text-muted-foreground tracking-[0.25em]">CAMERAS</span>
-          <span className="font-mono text-[10px] text-primary">3 / 3</span>
+          <span className="font-mono text-[10px] text-primary">
+            {cameras.length > 0 ? `${onlineCount} / ${cameras.length}` : "—"}
+          </span>
         </div>
         <div className="space-y-2">
-          {cameras.map((c) => (
-            <CameraButton
-              key={c.id}
-              id={c.id}
-              status={c.status}
-              active={activeCamera === c.id}
-              onClick={() => onCameraChange(c.id)}
-            />
-          ))}
+          {cameras.length === 0 ? (
+            <div className="font-mono text-[10px] text-muted-foreground tracking-widest px-1 animate-pulse">
+              CONNECTING…
+            </div>
+          ) : (
+            cameras.map((c) => (
+              <CameraButton
+                key={c.id}
+                camera={c}
+                active={activeCamera === c.id}
+                onClick={() => onCameraChange(c.id)}
+              />
+            ))
+          )}
         </div>
       </div>
 
@@ -120,35 +164,51 @@ const ModeButton = ({
 );
 
 const CameraButton = ({
-  id, status, active, onClick,
-}: { id: CameraId; status: "online" | "idle"; active: boolean; onClick: () => void }) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      "w-full flex items-center gap-3 p-2 rounded-md border transition-all duration-300",
-      active
-        ? "border-accent/50 bg-accent/5 shadow-[0_0_12px_hsl(var(--accent)/0.25)]"
-        : "border-border/60 bg-surface hover:border-accent/30"
-    )}
-  >
-    {/* mini preview */}
-    <div className="relative w-12 h-9 rounded overflow-hidden bg-background border border-border/50 shrink-0">
-      <div className="absolute inset-0 hud-grid opacity-60" />
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
-      <Camera className="absolute inset-0 m-auto w-3.5 h-3.5 text-primary/70" />
-      <span className={cn(
-        "absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full",
-        status === "online" ? "bg-primary animate-pulse-dot shadow-[0_0_6px_hsl(var(--primary))]" : "bg-muted-foreground/50"
-      )} />
-    </div>
-    <div className="text-left flex-1 min-w-0">
-      <div className={cn(
-        "font-mono text-xs font-semibold tracking-wider",
-        active ? "text-accent" : "text-foreground"
-      )}>{id}</div>
-      <div className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider">
-        {status === "online" ? "● Streaming" : "○ Standby"}
+  camera, active, onClick,
+}: { camera: ApiCamera; active: boolean; onClick: () => void }) => {
+  const displayId = camera.id.replace(/_/g, " ").toUpperCase();
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 p-2 rounded-md border transition-all duration-300",
+        active
+          ? "border-accent/50 bg-accent/5 shadow-[0_0_12px_hsl(var(--accent)/0.25)]"
+          : "border-border/60 bg-surface hover:border-accent/30"
+      )}
+    >
+      {/* mini preview */}
+      <div className="relative w-12 h-9 rounded overflow-hidden bg-background border border-border/50 shrink-0">
+        <div className="absolute inset-0 hud-grid opacity-60" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
+        <Camera className="absolute inset-0 m-auto w-3.5 h-3.5 text-primary/70" />
+        <span className={cn(
+          "absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full",
+          camera.connected
+            ? camera.trigger_active
+              ? "bg-accent animate-pulse-dot shadow-[0_0_6px_hsl(var(--accent))]"
+              : "bg-primary animate-pulse-dot shadow-[0_0_6px_hsl(var(--primary))]"
+            : "bg-muted-foreground/50"
+        )} />
       </div>
-    </div>
-  </button>
-);
+      <div className="text-left flex-1 min-w-0">
+        <div className={cn(
+          "font-mono text-xs font-semibold tracking-wider truncate",
+          active ? "text-accent" : "text-foreground"
+        )}>{displayId}</div>
+        <div className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider">
+          {!camera.connected
+            ? "○ Offline"
+            : camera.trigger_active
+              ? "● Pouring"
+              : `● ${camera.fps.toFixed(1)} FPS`}
+        </div>
+        {camera.connected && (
+          <div className="font-mono text-[8px] text-muted-foreground/70 mt-0.5">
+            {`PT ${camera.pattern} · LD ${camera.charge} · MD ${camera.mold}`}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+};

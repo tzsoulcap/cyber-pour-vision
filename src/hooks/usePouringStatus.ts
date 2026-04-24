@@ -28,7 +28,9 @@ type UsePouringStatusResult = {
   isError: boolean;
 };
 
-type RawStatus = {
+type RawCameraStatus = {
+  cam_id: string;
+  connected: boolean;
   trigger_active: boolean;
   pattern: number;
   charge: number;
@@ -41,7 +43,11 @@ type RawStatus = {
   images_saved: number;
 };
 
-function mapRawStatus(raw: RawStatus): PouringStatus {
+type RawStatusResponse = {
+  cameras: Record<string, RawCameraStatus>;
+};
+
+function mapRawCamera(raw: RawCameraStatus): PouringStatus {
   return {
     isPouring: raw.trigger_active,
     fps: raw.fps ?? 0,
@@ -57,27 +63,33 @@ function mapRawStatus(raw: RawStatus): PouringStatus {
       upper: raw.last_widths?.["100"] ?? 0,
       middle: raw.last_widths?.["280"] ?? 0,
       below: raw.last_widths?.["420"] ?? 0,
-      fillRatio: (raw.fill_ratio ?? 0),
+      fillRatio: (raw.fill_ratio ?? 0) * 100,
     },
   };
 }
 
-export function usePouringStatus(): UsePouringStatusResult {
+export function usePouringStatus(cameraId: string): UsePouringStatusResult {
   const [status, setStatus] = useState<PouringStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
   useEffect(() => {
+    if (!cameraId) return;
     let cancelled = false;
 
     const fetchStatus = async () => {
       try {
         const res = await fetch(`${API_BASE}/status`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const raw: RawStatus = await res.json();
+        const data: RawStatusResponse = await res.json();
+        const raw = data.cameras?.[cameraId];
         if (!cancelled) {
-          setStatus(mapRawStatus(raw));
-          setIsError(false);
+          if (raw) {
+            setStatus(mapRawCamera(raw));
+            setIsError(false);
+          } else {
+            setStatus(null);
+          }
           setIsLoading(false);
         }
       } catch {
@@ -95,7 +107,7 @@ export function usePouringStatus(): UsePouringStatusResult {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+  }, [cameraId]);
 
   return { status, isLoading, isError };
 }

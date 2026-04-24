@@ -1,8 +1,8 @@
 import { Panel } from "./Panel";
 import { usePouringStatus } from "@/hooks/usePouringStatus";
 
-export const DataSidebar = () => {
-  const { status, isLoading, isError } = usePouringStatus();
+export const DataSidebar = ({ cameraId }: { cameraId: string }) => {
+  const { status, isLoading, isError } = usePouringStatus(cameraId);
 
   const batchInfo = [
     { label: "Pattern", value: status?.batch?.pattern ?? "—" },

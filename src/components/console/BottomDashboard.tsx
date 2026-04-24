@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { SystemSettings } from "@/hooks/useSystemSettings";
 
-export const BottomDashboard = () => {
+export const BottomDashboard = ({ cameraId }: { cameraId: string }) => {
   const { settings, saveSettings } = useSystemSettings();
-  const { status } = usePouringStatus();
+  const { status } = usePouringStatus(cameraId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draft, setDraft] = useState<SystemSettings | null>(null);
   const [saving, setSaving] = useState(false);
@@ -55,26 +55,31 @@ export const BottomDashboard = () => {
             </button>
           }
         >
-          <div className="grid grid-cols-2 gap-3 p-4">
-            <ConfigField
-              icon={<Camera className="w-3.5 h-3.5" />}
-              label="Exposure"
-              value={settings ? String(settings.camera.exposureTime) : "—"}
-              unit="μs"
-            />
-            <ConfigField
-              icon={<Gauge className="w-3.5 h-3.5" />}
-              label="Detect Interval"
-              value={settings ? String(settings.detection.interval) : "—"}
-              unit="s"
-            />
-            <StatusField label="Detection" enabled={settings?.detection.enabled ?? null} />
-            <StatusField label="Saving" enabled={settings?.saving.enabled ?? null} />
-            <TagsField icon={<HardDrive className="w-3.5 h-3.5" />} label="Save Patterns" values={settings?.saving.patterns ?? null} />
-            <ConfigField icon={<Clock className="w-3.5 h-3.5" />} label="Retention" value={settings ? String(settings.saving.retentionDays) : "—"} unit="days" />
-            <StatusField label="API" enabled={settings?.api.enabled ?? null} />
-            <TagsField icon={<Shield className="w-3.5 h-3.5" />} label="API Patterns" values={settings?.api.patterns ?? null} />
-          </div>
+          {(() => {
+            const activeCam = settings?.cameras.find((c) => c.id === cameraId) ?? settings?.cameras[0];
+            return (
+              <div className="grid grid-cols-2 gap-3 p-4">
+                <ConfigField
+                  icon={<Camera className="w-3.5 h-3.5" />}
+                  label="Exposure"
+                  value={activeCam ? String(activeCam.exposureTime) : "—"}
+                  unit="μs"
+                />
+                <ConfigField
+                  icon={<Gauge className="w-3.5 h-3.5" />}
+                  label="Detect Interval"
+                  value={settings ? String(settings.detection.interval) : "—"}
+                  unit="s"
+                />
+                <StatusField label="Detection" enabled={settings?.detection.enabled ?? null} />
+                <StatusField label="Saving" enabled={settings?.saving.enabled ?? null} />
+                <TagsField icon={<HardDrive className="w-3.5 h-3.5" />} label="Save Patterns" values={settings?.saving.patterns ?? null} />
+                <ConfigField icon={<Clock className="w-3.5 h-3.5" />} label="Retention" value={settings ? String(settings.saving.retentionDays) : "—"} unit="days" />
+                <StatusField label="API" enabled={settings?.api.enabled ?? null} />
+                <TagsField icon={<Shield className="w-3.5 h-3.5" />} label="API Patterns" values={settings?.api.patterns ?? null} />
+              </div>
+            );
+          })()}
         </Panel>
 
         {/* System Health */}
@@ -97,16 +102,25 @@ export const BottomDashboard = () => {
 
           {draft && (
             <div className="space-y-5 py-2 max-h-[60vh] overflow-y-auto pr-1">
-              {/* Camera */}
-              <Section label="Camera">
-                <FormRow label="Exposure Time (μs)">
-                  <Input
-                    type="number"
-                    value={draft.camera.exposureTime}
-                    onChange={(e) => setDraft({ ...draft, camera: { ...draft.camera, exposureTime: Number(e.target.value) } })}
-                    className="font-mono h-8 text-xs"
-                  />
-                </FormRow>
+              {/* Cameras */}
+              <Section label="Cameras">
+                {draft.cameras.map((cam, idx) => (
+                  <FormRow key={cam.id} label={`${cam.id.replace(/_/g, " ").toUpperCase()} — Exposure (μs)`}>
+                    <Input
+                      type="number"
+                      value={cam.exposureTime}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          cameras: draft.cameras.map((c, i) =>
+                            i === idx ? { ...c, exposureTime: Number(e.target.value) } : c
+                          ),
+                        })
+                      }
+                      className="font-mono h-8 text-xs"
+                    />
+                  </FormRow>
+                ))}
               </Section>
 
               {/* Detection */}
@@ -124,6 +138,28 @@ export const BottomDashboard = () => {
                     step="0.01"
                     value={draft.detection.interval}
                     onChange={(e) => setDraft({ ...draft, detection: { ...draft.detection, interval: Number(e.target.value) } })}
+                    className="font-mono h-8 text-xs"
+                  />
+                </FormRow>
+                <FormRow label="Confidence">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={draft.detection.confidence}
+                    onChange={(e) => setDraft({ ...draft, detection: { ...draft.detection, confidence: Number(e.target.value) } })}
+                    className="font-mono h-8 text-xs"
+                  />
+                </FormRow>
+                <FormRow label="Liquid Confidence">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={draft.detection.liquidConfidence}
+                    onChange={(e) => setDraft({ ...draft, detection: { ...draft.detection, liquidConfidence: Number(e.target.value) } })}
                     className="font-mono h-8 text-xs"
                   />
                 </FormRow>
@@ -170,6 +206,13 @@ export const BottomDashboard = () => {
                     checked={draft.api.enabled}
                     onCheckedChange={(v) => setDraft({ ...draft, api: { ...draft.api, enabled: v } })}
                     className="data-[state=checked]:bg-primary"
+                  />
+                </FormRow>
+                <FormRow label="URL">
+                  <Input
+                    value={draft.api.url}
+                    onChange={(e) => setDraft({ ...draft, api: { ...draft.api, url: e.target.value } })}
+                    className="font-mono h-8 text-xs"
                   />
                 </FormRow>
                 <FormRow label="Patterns (comma-separated)">
