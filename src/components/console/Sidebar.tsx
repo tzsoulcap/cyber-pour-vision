@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { Activity, Archive, Camera, Cpu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_BASE } from "@/lib/config";
 
 export type ViewMode = "live" | "archive";
 export type CameraId = string;
-
-const API_BASE = "http://192.168.212.10:5000";
 
 type ApiCamera = {
   id: string;

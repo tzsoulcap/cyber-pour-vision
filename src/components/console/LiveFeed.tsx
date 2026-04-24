@@ -26,8 +26,6 @@ export const LiveFeed = ({ cameraId }: Props) => {
         width={1280}
         height={768}
       />
-      {/* Vignette */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/10 to-background/40" />
       {/* HUD grid */}
       <div className="absolute inset-0 hud-grid opacity-30 mix-blend-screen" />
 

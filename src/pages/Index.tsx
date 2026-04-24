@@ -25,11 +25,14 @@ import { LiveFeed } from "@/components/console/LiveFeed";
 import { DataSidebar } from "@/components/console/DataSidebar";
 import { BottomDashboard } from "@/components/console/BottomDashboard";
 import { ArchiveView } from "@/components/console/ArchiveView";
+import { useTheme } from "@/hooks/useTheme";
+import { Moon, Sun } from "lucide-react";
 
 const Index = () => {
   const [view, setView] = useState<ViewMode>("live");
   const [camera, setCamera] = useState<CameraId>("");
   const bangkokTime = useBangkokTime();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -55,6 +58,13 @@ const Index = () => {
             <span className="text-primary">● AI MODEL v4.2.1</span>
             <span>OPERATOR · J. MORALES</span>
             <span className="text-accent">{bangkokTime}</span>
+            <button
+              onClick={toggleTheme}
+              className="ml-1 p-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </header>
 

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 
-const API_BASE = "http://192.168.212.10:5000";
+import { API_BASE } from "@/lib/config";
 
 export type ImageMeasurements = {
   upper_width_px: number;

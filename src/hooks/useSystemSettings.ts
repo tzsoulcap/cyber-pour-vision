@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-
-const API_BASE = "http://192.168.212.10:5000";
+import { API_BASE } from "@/lib/config";
 const POLL_INTERVAL_MS = 10000;
 
 type RawSettings = {

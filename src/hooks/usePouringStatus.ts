@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-
-const API_BASE = "http://192.168.212.10:5000";
+import { API_BASE } from "@/lib/config";
 const POLL_INTERVAL_MS = 500;
 
 export type PouringStatus = {
@@ -79,7 +78,7 @@ export function usePouringStatus(cameraId: string): UsePouringStatusResult {
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${API_BASE}/status`);
+        const res = await fetch(`${API_BASE}/api/status`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: RawStatusResponse = await res.json();
         const raw = data.cameras?.[cameraId];
